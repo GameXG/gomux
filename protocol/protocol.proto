@@ -1,0 +1,93 @@
+syntax = "proto3";
+package protocol;
+
+// https://developers.google.com/protocol-buffers/docs/proto3
+
+enum PackType {
+    UNIVERSAL = 0;
+    PackTypeHello = 1;
+    PackTypeHelloR = 2;
+
+
+    PackTypeStreamNew = 0x10;
+    // 流数据包
+    // 内部还可能会包含接收缓冲区剩余空间
+    PackTypeStreamData = 0x11;
+    PackTypeStreamDown = 0x12;
+    PackTypeStreamClose = 0x13;
+    PackTypeStreamRst = 0x14;
+    // 修改缓冲区大小
+    // 包内同时包含接收、发送双方的缓冲区字段
+    // 虽然流的双方都可以发送这个包
+    // 但是只有接收方发送的有效，另一方发送的只是建议
+    // 扩大缓冲区可以立刻生效
+    // 但是如果是缩小接收缓冲区，必须等到收到 SetR 后才能实际缩小接收缓冲区
+    PackTypeStreamWindowsSet = 0x16;
+    PackTypeStreamWindowsSetR = 0x17;
+}
+
+// status 还是分开吧，如果统一空间浪费比较严重。
+enum HelloRStatus {
+    HelloRStatusOk = 0;
+    HelloRStatusTimeout = 1;
+    HelloRStatusConnectionNotAllowedByRuleset = 0x100;
+}
+
+// 客户端发送第一次握手
+// 让客户端优先发送第一个包的目的是为了方便后期扩展
+message Hello {
+    // 协议版本
+    uint64 protocol_version = 1;
+    // 库的内部版本
+    uint64 library_version = 2;
+    // 支持的特征列表
+    // 一般约定是，排前面的优先支持，即当多个特征互相冲突时，协商时优先使用排行靠前的特征。
+    // 每个 bytes，最前面为 uvarint 值，表示特征id，后面为具体详细数据
+    repeated bytes feature = 3;
+}
+
+message HelloR {
+    // 协议版本
+    uint64 protocol_version = 1;
+    // 库的内部版本
+    uint64 library_version = 2;
+
+    // 状态
+    uint64 status = 3;
+    // 延迟，当失败等错误时，客户端需要在 delay 秒后才能重试
+    uint64 delay = 4;
+    //错误消息
+    string message = 5;
+// 服务端返回最终支持的特征列表
+    repeated bytes feature = 6;
+}
+
+
+message StreamNew {
+    // 客户端为单数、服务端为双数
+    // 0 保留
+    uint64 stream_id = 1;
+
+}
+
+// 数据放到包的扩展数据部分
+// 节省一次拷贝消耗
+message StreamData {
+    uint64 stream_id = 1;
+}
+
+message StreamClose{
+    uint64 stream_id = 1;
+
+}
+
+message StreamRst {
+    uint64 stream_id = 1;
+
+}
+
+message StreamDown{
+
+}
+
+
